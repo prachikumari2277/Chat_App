@@ -6,3 +6,5 @@ export const allUsersRoute = `${host}/api/auth/allusers`;
 export const sendMessageRoute = `${host}/api/messages/addmsg`;
 export const recieveMessageRoute = `${host}/api/messages/getmsg`;
 export const setAvatarRoute = `${host}/api/auth/setavatar`;
+export const clearMessageRoute = `${host}/api/messages/clearMessage`;
+export const blockUser = `${host}/api/auth/block/:id`;
