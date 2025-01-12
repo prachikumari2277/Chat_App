@@ -1,4 +1,5 @@
 const Messages = require("../models/messageModel");
+const Users = require("../models/messageModel");
 
 module.exports.getMessages = async (req, res, next) => {
   try {
@@ -37,3 +38,25 @@ module.exports.addMessage = async (req, res, next) => {
     next(ex);
   }
 };
+
+module.exports.clearChat = async (req, res, next) => {
+  try {
+    const { from, to } = req.body;
+
+    // Delete all messages between the two users
+    await Messages.deleteMany({
+      users: {
+        $all: [from, to],
+      },
+    });
+
+    res.json({ msg: "Chat cleared successfully" });
+  } catch (ex) {
+    next(ex);
+  }
+};
+
+
+
+
+
