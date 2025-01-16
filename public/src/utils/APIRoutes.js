@@ -7,4 +7,6 @@ export const sendMessageRoute = `${host}/api/messages/addmsg`;
 export const recieveMessageRoute = `${host}/api/messages/getmsg`;
 export const setAvatarRoute = `${host}/api/auth/setavatar`;
 export const clearMessageRoute = `${host}/api/messages/clearMessage`;
-export const blockUser = `${host}/api/auth/block/:id`;
+export const sendPhotoRoute = `${host}/api/messages/sendPhoto`;
+export const getPhotoRoute = `${host}/api/messages/getPhoto`;
+
