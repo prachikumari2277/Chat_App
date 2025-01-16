@@ -10,7 +10,7 @@ export default function MenuPhoto({ handleSendMsg }) {
     const file = event.target.files[0];
     if (file) {
       setFileName(file.name);
-      handleSendMsg(file) // Set the file name to display in the UI
+      handleSendMsg(file) 
     }
   };
 
@@ -37,9 +37,7 @@ export default function MenuPhoto({ handleSendMsg }) {
           </div>
         </div>
       </div>
-      {/* Display the selected file name */}
       {fileName && <p className="file-name">Selected file: {fileName}</p>}
-      {/* Hidden file input */}
       <input
         type="file"
         accept="image/*"
