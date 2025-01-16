@@ -3,9 +3,15 @@ import styled from "styled-components";
 import ChatInput from "./ChatInput";
 import { v4 as uuidv4 } from "uuid";
 import axios from "axios";
-import { sendMessageRoute, recieveMessageRoute, clearMessageRoute } from "../utils/APIRoutes"; // Add the clearMessageRoute import
-import Vertical from "./Vertical";
-import { BiCaretRight } from "react-icons/bi";
+import { BiDotsVertical } from "react-icons/bi";
+import { 
+  sendMessageRoute, 
+  recieveMessageRoute, 
+  clearMessageRoute,
+  sendPhotoRoute,
+  getPhotoRoute
+} from "../utils/APIRoutes"; 
+import MenuBar from "./MenuBar";
 
 export default function ChatContainer({ currentChat, socket }) {
   const [messages, setMessages] = useState([]);
@@ -15,66 +21,118 @@ export default function ChatContainer({ currentChat, socket }) {
 
   useEffect(() => {
     const fetchMessages = async () => {
-      const data = JSON.parse(
-        localStorage.getItem(process.env.REACT_APP_LOCALHOST_KEY)
-      );
-      const response = await axios.post(recieveMessageRoute, {
-        from: data._id,
-        to: currentChat._id,
-      });
-      setMessages(response.data);
+      const data = JSON.parse(localStorage.getItem(process.env.REACT_APP_LOCALHOST_KEY));
+      if (!data || !currentChat?._id) {
+        console.error("User data or currentChat is missing.");
+        return;
+      }
+  
+      try {
+        const response = await axios.post(recieveMessageRoute, {
+          from: data._id, 
+          to: currentChat._id, 
+        });
+        const sortedMessages = response.data.sort(
+          (a, b) => new Date(a.createdAt) - new Date(b.createdAt)
+        );
+  
+        setMessages(sortedMessages); 
+      } catch (error) {
+        console.error("Error fetching messages:", error);
+      }
     };
+  
     fetchMessages();
   }, [currentChat]);
-
-  const toggleMenu = () => {
-    setMenuVisible((prev) => !prev);
-  };
-
-  const handleSendMsg = async (msg) => {
-    const data = JSON.parse(
-      localStorage.getItem(process.env.REACT_APP_LOCALHOST_KEY)
-    );
-    socket.current.emit("send-msg", {
-      to: currentChat._id,
-      from: data._id,
-      msg,
-    });
-    await axios.post(sendMessageRoute, {
-      from: data._id,
-      to: currentChat._id,
-      message: msg,
-    });
-
-    setMessages((prev) => [...prev, { fromSelf: true, message: msg }]);
-  };
-
+ 
+  
   useEffect(() => {
     if (socket.current) {
       socket.current.on("msg-recieve", (msg) => {
-        setArrivalMessage({ fromSelf: false, message: msg });
+        if (msg.from === currentChat._id || msg.to === currentChat._id) {
+          setArrivalMessage({ fromSelf: false, message: msg });
+        }
       });
     }
-  }, []);
+  }, [currentChat, socket]);
+  
 
   useEffect(() => {
     if (arrivalMessage) {
       setMessages((prev) => [...prev, arrivalMessage]);
     }
   }, [arrivalMessage]);
+  
+  
 
   useEffect(() => {
     scrollRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
+  
 
+  const toggleMenu = () => {
+    setMenuVisible(!menuVisible);
+  };
 
+  const handleSendMsg = async (msgOrFile) => {
+    const data = JSON.parse(
+      localStorage.getItem(process.env.REACT_APP_LOCALHOST_KEY)
+    );
+  
+    try {
+      let newMessage;
+      if (msgOrFile instanceof File) {
+        const formData = new FormData();
+        formData.append("image", msgOrFile);
+        formData.append("from", data._id);
+        formData.append("to", currentChat._id);
+  
+        const response = await axios.post(sendPhotoRoute, formData, {
+          headers: { "Content-Type": "multipart/form-data" },
+        });
+  
+        if (response.data.success) {
+          newMessage = {
+            fromSelf: true,
+            message: response.data.imageUrl,
+          };
+          setMessages((prev) => [...prev, newMessage]);
+        } else {
+          console.error("Backend error:", response.data.msg);
+        }
+      } else {
+        const response = await axios.post(sendMessageRoute, {
+          from: data._id,
+          to: currentChat._id,
+          message: msgOrFile,
+        });
+  
+        if (response.data.msg === "Message added successfully.") {
+          newMessage = {
+            fromSelf: true,
+            message: msgOrFile,
+          };
+          setMessages((prev) => [...prev, newMessage]);
+        } else {
+          console.error("Backend error:", response.data.msg);
+        }
+      }
+  
+      socket.current.emit("send-msg", {
+        to: currentChat._id,
+        from: data._id,
+        msg: newMessage?.message,
+      });
+    } catch (error) {
+      console.error("Error sending message:", error);
+    }
+  };
+  
 
   const handleClearMessages = async () => {
     try {
-      const data = JSON.parse(
-        localStorage.getItem(process.env.REACT_APP_LOCALHOST_KEY)
-      );
-      const response = await axios.post(clearMessageRoute, {
+      const data = JSON.parse(localStorage.getItem(process.env.REACT_APP_LOCALHOST_KEY));
+      await axios.post(clearMessageRoute, {
         from: data._id,
         to: currentChat._id,
       });
@@ -85,7 +143,7 @@ export default function ChatContainer({ currentChat, socket }) {
   };
 
   return (
-    <Container menuVisible={menuVisible}>
+    <Container>
       <div className="chat-header">
         <div className="user-details">
           <div className="avatar">
@@ -98,41 +156,45 @@ export default function ChatContainer({ currentChat, socket }) {
             <h3>{currentChat.username}</h3>
           </div>
         </div>
-        <Vertical toggleMenu={toggleMenu} />
-      </div>
-      {menuVisible && (
-        <div className="menu">
-          <div className="part" onClick={handleClearMessages}>
-            <div className="name">
-              <h4>Clear Chat</h4>
-            </div>
-          </div>
-          <div className="part">
-            <div className="name">
-              <h4>Block</h4>
-            </div>
-          </div>
-          <div className="part">
-            <div className="name">
-              <h4>More</h4>
-              <BiCaretRight />
-            </div>
-          </div>
+        <div className="vertical">
+          <button type="button" onClick={toggleMenu}>
+            <BiDotsVertical />
+          </button>
+          {menuVisible && (
+            <MenuBar
+              toggleMenu={toggleMenu}
+              handleClearMessages={handleClearMessages}
+            />
+          )}
         </div>
-      )}
-      <div className="chat-messages">
-        {messages.map((message) => (
-          <div ref={scrollRef} key={uuidv4()}>
-            <div
-              className={`message ${message.fromSelf ? "sended" : "recieved"}`}
-            >
-              <div className="content">
-                <p>{message.message}</p>
-              </div>
-            </div>
-          </div>
-        ))}
       </div>
+      
+      <div className="chat-messages">
+  {messages.map((message) => (
+    <div ref={scrollRef} key={uuidv4()}>
+      <div className={`message ${message.fromSelf ? "sended" : "recieved"}`}>
+        <div className="content">
+          {message.message.startsWith("/uploads/") ? (
+            <img
+              src={`http://localhost:5000${message.message}`} 
+              alt="Shared"
+              style={{
+                maxWidth: "200px",
+                maxHeight: "200px",
+                borderRadius: "8px",
+              }}
+            />
+          ) : (
+            <p>{message.message}</p>
+          )}
+        </div>
+      </div>
+    </div>
+  ))}
+</div>
+
+
+      
       <ChatInput handleSendMsg={handleSendMsg} />
     </Container>
   );
@@ -140,8 +202,7 @@ export default function ChatContainer({ currentChat, socket }) {
 
 const Container = styled.div`
   display: grid;
-  grid-template-rows: ${({ menuVisible }) =>
-    menuVisible ? "10% 30% 50% 10%" : "10% 80% 10%"};
+  grid-template-rows: 10% 80% 10%;
   gap: 0.1rem;
   overflow: hidden;
 
@@ -150,6 +211,7 @@ const Container = styled.div`
     justify-content: space-between;
     align-items: center;
     padding: 0 2rem;
+
     .user-details {
       display: flex;
       align-items: center;
@@ -161,42 +223,22 @@ const Container = styled.div`
         color: white;
       }
     }
-  }
 
-  .menu {
-    background-color: #ffffff15;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    width: 30%;
-    margin-left: auto;
-    margin-right: 2rem;
-    gap: 0.5rem;
-    border-radius: 0.5rem;
-    padding: 1rem;
-    transition: 0.5s ease-in-out;
-    &::-webkit-scrollbar {
-      width: 0;
-    }
-    .part {
-      background-color: #ffffff34;
-      min-height: 3rem;
-      width: 100%;
-      border-radius: 0.2rem;
-      padding: 0.5rem;
-      display: flex;
-      flex-direction:row;
-      align-items: center;
-      cursor: pointer;
-      transition: background-color 0.1s ease;
-      
-      &:hover {
-        background-color: #9a86f3;
-      }
-      .name{
-        color:white;
+    .vertical {
+      position: relative;
+      button {
         display: flex;
-        flex-direction:row;
+        justify-content: center;
+        align-items: center;
+        padding: 0.5rem;
+        border-radius: 0.5rem;
+        background-color: #9a86f3;
+        border: none;
+        cursor: pointer;
+        svg {
+          font-size: 1.3rem;
+          color: #ebe7ff;
+        }
       }
     }
   }
@@ -246,4 +288,3 @@ const Container = styled.div`
     }
   }
 `;
-
