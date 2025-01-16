@@ -3,14 +3,27 @@ import { BsEmojiSmileFill } from "react-icons/bs";
 import { IoMdSend } from "react-icons/io";
 import styled from "styled-components";
 import Picker from "emoji-picker-react";
+import { BiPlus } from "react-icons/bi";
+import MenuPhoto from "./MenuPhoto";
+import axios from "axios";
+import {  
+  sendPhotoRoute
+} from "../utils/APIRoutes"; 
 
-export default function ChatInput({ handleSendMsg }) {
+
+export default function ChatInput({  handleSendMsg }) {
   const [msg, setMsg] = useState("");
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [menuVisible, setMenuVisible] = useState(false);
+
   const handleEmojiPickerhideShow = () => {
     setShowEmojiPicker(!showEmojiPicker);
   };
-
+  
+  const toggleMenu = ()=>{
+    setMenuVisible(!menuVisible);
+  }
+  
   const handleEmojiClick = (event, emojiObject) => {
     let message = msg;
     message += emojiObject.emoji;
@@ -25,14 +38,25 @@ export default function ChatInput({ handleSendMsg }) {
     }
   };
 
+
   return (
     <Container>
-      <div className="button-container">
+      <div className="button-container1">
+        <button1 type="button" onClick={toggleMenu}>
+          <BiPlus /> 
+        </button1>  
+        {menuVisible && (
+          <MenuPhoto  handleSendMsg={handleSendMsg}/>
+        )}
+      </div>
+
+      <div className="button-container2">
         <div className="emoji">
           <BsEmojiSmileFill onClick={handleEmojiPickerhideShow} />
           {showEmojiPicker && <Picker onEmojiClick={handleEmojiClick} />}
         </div>
       </div>
+
       <form className="input-container" onSubmit={(event) => sendChat(event)}>
         <input
           type="text"
@@ -51,18 +75,40 @@ export default function ChatInput({ handleSendMsg }) {
 const Container = styled.div`
   display: grid;
   align-items: center;
-  grid-template-columns: 5% 95%;
+  grid-template-columns: 5% 5% 90%;
   background-color: #080420;
   padding: 0 2rem;
   @media screen and (min-width: 720px) and (max-width: 1080px) {
     padding: 0 1rem;
     gap: 1rem;
   }
-  .button-container {
+  
+  .button-container1{
+    
+    position: relative;
+      button1 {
+        width:80%;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        padding: 0.5rem;
+        border-radius: 0.5rem;
+        background-color: #9a86f3;
+        border: none;
+        cursor: pointer;
+        svg {
+          font-size: 1.3rem;
+          color: #ebe7ff;
+        }
+      }
+     
+  }
+  .button-container2 {
     display: flex;
     align-items: center;
     color: white;
     gap: 1rem;
+    
     .emoji {
       position: relative;
       svg {
@@ -128,6 +174,7 @@ const Container = styled.div`
       justify-content: center;
       align-items: center;
       background-color: #9a86f3;
+      cursor: pointer;
       border: none;
       @media screen and (min-width: 720px) and (max-width: 1080px) {
         padding: 0.3rem 1rem;
